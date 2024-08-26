@@ -26,13 +26,9 @@ async def async_get(url : str) -> Union[str, None]:
 async def download_file(url : str, filepath : str, chunk_size : int = 512) -> None:
 	async with aiohttp.ClientSession() as session:
 		response : aiohttp.ClientResponse = await session.get(url, allow_redirects=True)
-		# Check if the request was successful
 		response.raise_for_status()
-		# Get the total size of the file
 		total_size = int(response.headers.get('Content-Length', 0))
-		# Prepare a progress bar
 		progress_bar = tqdm(total=total_size, unit='B', unit_scale=True, desc=os.path.basename(filepath))
-		# Write the response content to the destination file
 		with open(filepath, 'wb') as file:
 			async for chunk in response.content.iter_chunked(chunk_size):
 				if chunk:
@@ -106,14 +102,12 @@ async def dnld_file(url : str, directory : str) -> None:
 	filename : str = await parse_filename(file_data["filename"])
 	filepath = os.path.join(directory, filename)
 	if os.path.exists(filepath) and file_data['hash'] == hash_file(filepath):
-		return True # already downloaded
+		return True
 	await download_file(file_dnld_link, filepath, chunk_size=512)
 
 async def dnld_folder_items(folder_key : str, directory : str) -> None:
 	'''Download all items in the mediafire folder.'''
 	os.makedirs(directory, exist_ok=True)
-
-	# download folder data
 	data : list[dict] = []
 	chunk = 1
 	more_chunks = True
@@ -126,8 +120,6 @@ async def dnld_folder_items(folder_key : str, directory : str) -> None:
 			chunk += 1
 	except:
 		return
-
-	# iterate over files
 	urls : list[str] = []
 	for file_data in data:
 		filename : str = await parse_filename(file_data["filename"])
@@ -144,25 +136,16 @@ async def dnld_folder_items(folder_key : str, directory : str) -> None:
 
 async def dnld_folder(folder_key : str, directory : str, is_root_folder : bool = False) -> None:
 	'''Download the given MediaFire folder - also iterates over nested folders.'''
-
-	# root folder directory
 	if is_root_folder is True:
-		# change it to a subfolder based on the key
 		folder_url : str = await get_mediafire_folder_data('folders', folder_key, info=True)
 		content : str = await async_get(folder_url)
 		folder_name : str = json.loads(content)["response"]["folder_info"]["name"]
 		directory = os.path.join(directory, await parse_filename(folder_name))
-
-	# download items in this folder
 	os.makedirs(directory, exist_ok=True)
 	await dnld_folder_items(folder_key, directory)
-
-	# get sub-folders info
 	folder_content = json.loads(
 		await async_get(await get_mediafire_folder_data("folders", folder_key))
 	)["response"]["folder_content"]
-
-	# download sub-folders
 	if "folders" in folder_content:
 		for folder in folder_content["folders"]:
 			subdir : str = os.path.join(directory, folder["name"])
@@ -172,7 +155,6 @@ async def download_url(url : str, directory : str) -> None:
 	url_type, url_key = await get_mfkey_from_url(url)
 	if url_type is None:
 		raise ValueError('Invalid Mediafire URL!')
-
 	if url_type == "file":
 		await dnld_file(url, directory)
 	elif url_type == "folder":
