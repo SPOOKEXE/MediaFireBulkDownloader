@@ -10,11 +10,13 @@ def get_links_from_file(filepath : str) -> list[str]:
 	with open(filepath, 'r', encoding='utf-8') as file:
 		for line in file.readlines():
 			links.extend(url_pattern.findall(line))
-	return links
+	return [item for item in links if item is not None]
 
 if __name__ == '__main__':
 	# from file example
 	urls : list[str] = get_links_from_file("bookmarks.html")
+	urls : list[str] = [item for item in urls if "www.mediafire.com" in item]
+	print(len(urls))
 	directory : str = 'downloads'
 	simultaneous : int = 3
 	_ = asyncio.run(distributed_download_urls(
@@ -22,6 +24,6 @@ if __name__ == '__main__':
 	))
 
 	# using url example
-	url : str = ''
-	directory : str = 'downloads'
-	asyncio.run(download_url(url, directory))
+	# url : str = ''
+	# directory : str = 'downloads'
+	# asyncio.run(download_url(url, directory))

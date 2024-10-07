@@ -6,6 +6,7 @@ import json
 import gazpacho
 import asyncio
 import hashlib
+import requests
 
 from typing import Union
 from tqdm import tqdm
@@ -17,14 +18,18 @@ def hash_file(filepath : str) -> str:
 			hasher.update(chunk)
 	return hasher.hexdigest()
 
+HEADERS = {'User-Agent' : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36'}
 async def async_get(url : str) -> Union[str, None]:
-	async with aiohttp.ClientSession() as session:
-		response = await session.get(url, allow_redirects=True)
-		response.raise_for_status()
-		return await response.text()
+	# async with aiohttp.ClientSession(headers=HEADERS) as session:
+	# 	response = await session.get(url, allow_redirects=True)
+	# 	with open('response.html', 'w') as file:
+	# 		file.write(await response.text())
+	# 	response.raise_for_status()
+	# 	return await response.text()
+	return requests.get(url, headers=HEADERS).text
 
 async def download_file(url : str, filepath : str, chunk_size : int = 512) -> None:
-	async with aiohttp.ClientSession() as session:
+	async with aiohttp.ClientSession(headers=HEADERS) as session:
 		response : aiohttp.ClientResponse = await session.get(url, allow_redirects=True)
 		response.raise_for_status()
 		total_size = int(response.headers.get('Content-Length', 0))
@@ -36,7 +41,7 @@ async def download_file(url : str, filepath : str, chunk_size : int = 512) -> No
 					progress_bar.update(len(chunk))
 		progress_bar.close()
 
-async def bulk_download_files(url_filepath_tuples : list[tuple[str, str]], simultaneous : int = 3, chunk_size : int = 512) -> list[bool]:
+async def bulk_download_files(url_filepath_tuples : list[tuple[str, str]], simultaneous : int = 1, chunk_size : int = 512) -> list[bool]:
 	semaphore = asyncio.Semaphore(simultaneous)
 	async def sem_download(url, filepath):
 		nonlocal chunk_size
@@ -85,7 +90,8 @@ async def get_download_url_from_file(url : str) -> Union[str, None]:
 			.find("a", {"class": "input popsok"}) \
 			.attrs["href"]
 		return download_url
-	except Exception:
+	except Exception as e:
+		print(e)
 		return None
 
 async def parse_filename(filename : str) -> str:
@@ -162,7 +168,7 @@ async def download_url(url : str, directory : str) -> None:
 	else:
 		raise ValueError('Unsupported Mediafire URL type!')
 
-async def distributed_download_urls(urls : list[str], directory : str, simultaneous : int = 3) -> list[bool]:
+async def distributed_download_urls(urls : list[str], directory : str, simultaneous : int = 1) -> list[bool]:
 	semaphore = asyncio.Semaphore(simultaneous)
 	async def sem_download(url):
 		async with semaphore:
