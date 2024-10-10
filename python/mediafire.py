@@ -28,11 +28,12 @@ async def async_get(url : str) -> Union[str, None]:
 	# 	return await response.text()
 	return requests.get(url, headers=HEADERS).text
 
-async def download_file(url : str, filepath : str, chunk_size : int = 512) -> None:
+async def download_file(url : str, filepath : str, chunk_size : int = 32) -> None:
 	async with aiohttp.ClientSession(headers=HEADERS) as session:
 		response : aiohttp.ClientResponse = await session.get(url, allow_redirects=True)
 		response.raise_for_status()
 		total_size = int(response.headers.get('Content-Length', 0))
+		if total_size > 15e8: return
 		progress_bar = tqdm(total=total_size, unit='B', unit_scale=True, desc=os.path.basename(filepath))
 		with open(filepath, 'wb') as file:
 			async for chunk in response.content.iter_chunked(chunk_size):
@@ -41,7 +42,7 @@ async def download_file(url : str, filepath : str, chunk_size : int = 512) -> No
 					progress_bar.update(len(chunk))
 		progress_bar.close()
 
-async def bulk_download_files(url_filepath_tuples : list[tuple[str, str]], simultaneous : int = 1, chunk_size : int = 512) -> list[bool]:
+async def bulk_download_files(url_filepath_tuples : list[tuple[str, str]], simultaneous : int = 1, chunk_size : int = 32) -> list[bool]:
 	semaphore = asyncio.Semaphore(simultaneous)
 	async def sem_download(url, filepath):
 		nonlocal chunk_size
@@ -109,7 +110,7 @@ async def dnld_file(url : str, directory : str) -> None:
 	filepath = os.path.join(directory, filename)
 	if os.path.exists(filepath) and file_data['hash'] == hash_file(filepath):
 		return True
-	await download_file(file_dnld_link, filepath, chunk_size=512)
+	await download_file(file_dnld_link, filepath, chunk_size=32)
 
 async def dnld_folder_items(folder_key : str, directory : str) -> None:
 	'''Download all items in the mediafire folder.'''
@@ -134,9 +135,13 @@ async def dnld_folder_items(folder_key : str, directory : str) -> None:
 			continue
 		file_first_link : str = file_data["links"]["normal_download"]
 		urls.append(file_first_link)
-	tasks = [dnld_file(url, directory) for url in urls]
+	results = []
 	print(f'Starting bulk download of {len(urls)} items.')
-	results = await asyncio.gather(*tasks)
+	for url in urls:
+		try:
+			results.append(await dnld_file(url, directory))
+		except:
+			pass
 	print(f'Finished bulk download of {len(urls)} items.')
 	return results
 

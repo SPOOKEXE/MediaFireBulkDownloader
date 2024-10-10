@@ -18,10 +18,8 @@ if __name__ == '__main__':
 	urls : list[str] = [item for item in urls if "www.mediafire.com" in item]
 	print(len(urls))
 	directory : str = 'downloads'
-	simultaneous : int = 3
-	_ = asyncio.run(distributed_download_urls(
-		urls, directory, simultaneous=simultaneous
-	))
+	simultaneous : int = 1
+	_ = asyncio.run(distributed_download_urls(urls, directory, simultaneous=simultaneous))
 
 	# using url example
 	# url : str = ''
